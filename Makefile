@@ -5,7 +5,6 @@ GOARCH := $(shell go env GOARCH)
 GOFILES=$(wildcard *.go)
 GONAME=dex-k8s-authenticator
 IMAGE_NAME ?= mesosphere/dex-k8s-authenticator
-DISTROLESS_STATIC_IMAGE ?= gcr.io/distroless/static@sha256:6706c73aae2afaa8201d63cc3dda48753c09bcd6c300762251065c0f7e602b25
 TAG ?= latest
 export CGO_ENABLED=0
 export GOPRIVATE ?= github.com/mesosphere
@@ -43,7 +42,7 @@ container: export GOOS=linux
 container: export GOARCH=amd64
 container: konvoy-async-auth build
 	@echo "Building container image"
-	docker build --build-arg DISTROLESS_STATIC_IMAGE=$(DISTROLESS_STATIC_IMAGE) -t ${IMAGE_NAME}:${TAG} .
+	docker build -t ${IMAGE_NAME}:${TAG} .
 
 .PHONY: push-image
 push-image:
