@@ -56,6 +56,15 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - uses: actions/create-github-app-token@v1
+        id: app-token-mesosphere
+        with:
+          app-id: ${{ secrets.GHA_CHECKOUT_APP_ID }}
+          private-key: ${{ secrets.GHA_CHECKOUT_APP_PRIVATE_KEY }}
+          owner: mesosphere
+
+      - run: git config --global url."https://oauth2:${{ steps.app-token-mesosphere.outputs.token }}@github.com/mesosphere/".insteadOf "https://github.com/mesosphere/"
+
       - name: Build container image
         run: devbox run -- make container
         env:
