@@ -71,6 +71,9 @@ func (cluster *Cluster) renderToken(w http.ResponseWriter,
 	}
 
 	clusterHostname := cluster.Name
+	if clusterHostname == managementClusterIdentifier {
+		clusterHostname = managementClusterContextName
+	}
 	if useClusterHostnameForClusterName {
 		parsed, err := url.Parse(cluster.K8s_Master_URI)
 		if err != nil {

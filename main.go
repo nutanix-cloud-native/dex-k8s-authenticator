@@ -35,6 +35,11 @@ var (
 	debug       bool
 )
 
+const (
+	managementClusterIdentifier = "kubernetes-cluster"
+	managementClusterContextName = "nkp-management-cluster"
+)
+
 type debugTransport struct {
 	t http.RoundTripper
 }

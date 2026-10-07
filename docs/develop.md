@@ -37,3 +37,6 @@ dex serve examples/dex-server-config-dev.yaml
 ### Configuration Options
 
 Additional configuration options are explained [here](config.md)
+
+### Regarding HTML Templates
+The template stored at ./templates are stale and the actual html template that are been used are stored at [charts repo](https://github.com/mesosphere/charts/tree/master/staging/dex-k8s-authenticator/html-templates)
