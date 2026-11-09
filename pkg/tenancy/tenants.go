@@ -4,6 +4,14 @@ import (
 	"context"
 )
 
+const (
+	// ManagementClusterName is the DKA config name for the management cluster.
+	ManagementClusterName = "kubernetes-cluster"
+
+	// ManagementWorkspaceName is the workspace / tenant id for the management cluster.
+	ManagementWorkspaceName = "kommander-workspace"
+)
+
 // TenantId is identifier of a tenant.
 type TenantId string
 

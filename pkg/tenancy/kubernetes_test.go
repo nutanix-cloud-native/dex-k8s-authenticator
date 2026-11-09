@@ -296,8 +296,8 @@ func TestK8sTenantsFilterClusterNames(t *testing.T) {
 	// Pre-register all GVRs used by FilterClusterNames so the fake client can
 	// handle List calls even when no objects of that type are in the fixture.
 	gvrToListKind := map[schema.GroupVersionResource]string{
-		{Group: "workspaces.kommander.mesosphere.io", Version: "v1alpha1", Resource: "workspaces"}:   "WorkspaceList",
-		{Group: "kommander.mesosphere.io", Version: "v1beta1", Resource: "kommanderclusters"}:        "KommanderClusterList",
+		{Group: "workspaces.kommander.mesosphere.io", Version: "v1alpha1", Resource: "workspaces"}: "WorkspaceList",
+		{Group: "kommander.mesosphere.io", Version: "v1beta1", Resource: "kommanderclusters"}:      "KommanderClusterList",
 	}
 
 	for i := range testCases {
@@ -318,4 +318,78 @@ func TestK8sTenantsFilterClusterNames(t *testing.T) {
 			assert.Equal(tt, tc.expectedNames, filtered)
 		})
 	}
+}
+
+func TestK8sTenantsGetTenantsByCluster(t *testing.T) {
+	t.Parallel()
+
+	gvrToListKind := map[schema.GroupVersionResource]string{
+		{Group: "workspaces.kommander.mesosphere.io", Version: "v1alpha1", Resource: "workspaces"}: "WorkspaceList",
+		{Group: "kommander.mesosphere.io", Version: "v1beta1", Resource: "kommanderclusters"}:      "KommanderClusterList",
+	}
+
+	objs := []runtime.Object{
+		&unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"apiVersion": "workspaces.kommander.mesosphere.io/v1alpha1",
+				"kind":       "Workspace",
+				"metadata": map[string]interface{}{
+					"name": tenancy.ManagementWorkspaceName,
+				},
+				"status": map[string]interface{}{
+					"namespaceRef": map[string]interface{}{
+						"name": tenancy.ManagementWorkspaceName,
+					},
+				},
+			},
+		},
+		&unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"apiVersion": "workspaces.kommander.mesosphere.io/v1alpha1",
+				"kind":       "Workspace",
+				"metadata": map[string]interface{}{
+					"name": "york-ws",
+				},
+				"status": map[string]interface{}{
+					"namespaceRef": map[string]interface{}{
+						"name": "york-ws",
+					},
+				},
+			},
+		},
+		&unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"apiVersion": "kommander.mesosphere.io/v1beta1",
+				"kind":       "KommanderCluster",
+				"metadata": map[string]interface{}{
+					"name":      "host-cluster",
+					"namespace": tenancy.ManagementWorkspaceName,
+				},
+			},
+		},
+		&unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"apiVersion": "kommander.mesosphere.io/v1beta1",
+				"kind":       "KommanderCluster",
+				"metadata": map[string]interface{}{
+					"name":      "dev-cluster-01",
+					"namespace": "york-ws",
+				},
+			},
+		},
+	}
+
+	cl := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, objs...)
+	tenants := tenancy.NewK8sTenants(cl)
+	got, err := tenants.GetTenantsByCluster(context.Background())
+	require.NoError(t, err)
+
+	require.Contains(t, got, tenancy.ManagementClusterName)
+	assert.Equal(t, tenancy.TenantId(tenancy.ManagementWorkspaceName), got[tenancy.ManagementClusterName].ID)
+
+	require.Contains(t, got, "dev-cluster-01")
+	assert.Equal(t, tenancy.TenantId("york-ws"), got["dev-cluster-01"].ID)
+
+	require.Contains(t, got, "host-cluster")
+	assert.Equal(t, tenancy.TenantId(tenancy.ManagementWorkspaceName), got["host-cluster"].ID)
 }
