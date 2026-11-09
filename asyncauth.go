@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -203,6 +204,12 @@ func (config *Config) renderInstructions(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
+	includeCluster, err := config.clusterFilterFromRequest(req)
+	if err != nil {
+		config.getFirstClusterOrPanic().renderHTMLError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	profileName := req.URL.Query().Get("profileName")
 	if profileName == "" {
 		profileName = defaultProfileName
@@ -216,7 +223,6 @@ func (config *Config) renderInstructions(w http.ResponseWriter, req *http.Reques
 		// If there is only 1 cluster in the multi-tenancy context plugin page
 		// the request from JS will not have a cluster name, but we have to select
 		// a cluster from a workspace instead of rendering the default cluster.
-		includeCluster := getClusterTenantIdFromRequestFilter(req)
 		if !includeCluster(*cluster) {
 			cluster = nil
 			for i, c := range config.Clusters {
@@ -240,8 +246,8 @@ func (config *Config) renderInstructions(w http.ResponseWriter, req *http.Reques
 				break
 			}
 		}
-		if cluster == nil {
-			log.Printf("requested cluster does not exist: %s", selectCluster)
+		if cluster == nil || !includeCluster(*cluster) {
+			log.Printf("requested cluster does not exist or is not in tenant: %s", selectCluster)
 			config.getFirstClusterOrPanic().renderHTMLError(w, "Bad Request", http.StatusBadRequest)
 			return
 		}
@@ -280,7 +286,7 @@ func (config *Config) renderInstructions(w http.ResponseWriter, req *http.Reques
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	err := templates.ExecuteTemplate(w, "kubectl-plugin-instructions.html", data)
+	err = templates.ExecuteTemplate(w, "kubectl-plugin-instructions.html", data)
 	if err != nil {
 		log.Printf("error getting instructions: %v", err)
 		cluster.renderHTMLError(w, "Internal Server Error", http.StatusInternalServerError)
@@ -294,7 +300,11 @@ func (config *Config) getClustersByProviders(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	includeCluster := getClusterTenantIdFromRequestFilter(req)
+	includeCluster, err := config.clusterFilterFromRequest(req)
+	if err != nil {
+		config.getFirstClusterOrPanic().renderHTMLError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	m := make(map[string][]ClusterJSON)
 
@@ -318,7 +328,7 @@ func (config *Config) getClustersByProviders(w http.ResponseWriter, req *http.Re
 		})
 	}
 
-	var flat []FlatProviderMap
+	flat := make([]FlatProviderMap, 0)
 	for issuer, clusters := range m {
 		parsed, _ := url.Parse(issuer)
 		flat = append(flat, FlatProviderMap{
@@ -371,12 +381,18 @@ func (config *Config) downloadKubeConfig(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
+	includeCluster, err := config.clusterFilterFromRequest(req)
+	if err != nil {
+		config.getFirstClusterOrPanic().renderHTMLError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	profileName := req.URL.Query().Get("profileName")
 	if profileName == "" {
 		profileName = defaultProfileName
 	}
 
-	kubeconfig, err := config.renderKubeconfig(profileName, binaryPath, getClusterTenantIdFromRequestFilter(req))
+	kubeconfig, err := config.renderKubeconfig(profileName, binaryPath, includeCluster)
 	if err != nil {
 		log.Printf("error rendering kubeconfig: %v", err)
 		config.getFirstClusterOrPanic().renderHTMLError(w, "Internal Server Error", http.StatusInternalServerError)
@@ -445,6 +461,10 @@ func (config *Config) renderKubeconfig(profileName, binaryPath string, includeCl
 		})
 	}
 
+	if len(kContexts) == 0 {
+		return nil, fmt.Errorf("no clusters to include in kubeconfig")
+	}
+
 	kConfig := KubeConfig{
 		// Set the current context to the local cluster
 		CurrentContext: kContexts[0].Name,
@@ -464,19 +484,24 @@ func (config *Config) renderKubeconfig(profileName, binaryPath string, includeCl
 
 type clusterFilter func(Cluster) bool
 
-// getClusterTenantIdFromRequestFilter returns a filter function that will
-// return false on clusters that aren't matching the requested tenant-id
-// from the request scope.
-func getClusterTenantIdFromRequestFilter(req *http.Request) clusterFilter {
+var errMissingTenantID = errors.New("missing tenant-id")
+
+// clusterFilterFromRequest returns a filter for clusters matching tenant-id.
+// When multi-tenancy is enabled, a missing tenant-id is an error so unscoped
+// catalogs cannot list every cluster.
+func (config *Config) clusterFilterFromRequest(req *http.Request) (clusterFilter, error) {
 	tenantId := req.URL.Query().Get(tenancy.TenantIdQueryParamName)
 	if tenantId != "" {
 		return func(c Cluster) bool {
 			return c.TenantId == tenancy.TenantId(tenantId)
-		}
+		}, nil
 	}
 
-	// If no tenant id is provided include all clusters
+	if config.Enable_Multi_Tenancy {
+		return nil, errMissingTenantID
+	}
+
 	return func(c Cluster) bool {
 		return true
-	}
+	}, nil
 }
