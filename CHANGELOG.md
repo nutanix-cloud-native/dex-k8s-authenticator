@@ -1,6 +1,24 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.4.7-d2iq (2026-11-25)
+
+## What's Changed
+* build(deps): bump actions/checkout from 4 to 6 by @dependabot[bot] in https://github.com/nutanix-cloud-native/dex-k8s-authenticator/pull/66
+* chore: bump distroless/static digest and enable Dependabot docker updates by @suresh882710 in https://github.com/nutanix-cloud-native/dex-k8s-authenticator/pull/73
+* fix: nit on margins in kubectl token page by @msdolbey in https://github.com/nutanix-cloud-native/dex-k8s-authenticator/pull/72
+* fix: sync release-please to 1.4.6 by @gracedo in https://github.com/nutanix-cloud-native/dex-k8s-authenticator/pull/78
+* fix: cluster list filtering by @cwyl02 in https://github.com/nutanix-cloud-native/dex-k8s-authenticator/pull/82
+* ci: fix docker creds secret env var by @cwyl02 in https://github.com/nutanix-cloud-native/dex-k8s-authenticator/pull/85
+* fix: docker hub creds using updated by @cwyl02 in https://github.com/nutanix-cloud-native/dex-k8s-authenticator/pull/86
+
+## New Contributors
+* @suresh882710 made their first contribution in https://github.com/nutanix-cloud-native/dex-k8s-authenticator/pull/73
+* @msdolbey made their first contribution in https://github.com/nutanix-cloud-native/dex-k8s-authenticator/pull/72
+* @cwyl02 made their first contribution in https://github.com/nutanix-cloud-native/dex-k8s-authenticator/pull/82
+
+**Full Changelog**: https://github.com/nutanix-cloud-native/dex-k8s-authenticator/compare/v1.4.6-d2iq...v1.4.7-d2iq
+
 ## 1.4.4-d2iq (2024-09-17)
 
 ## What's Changed
