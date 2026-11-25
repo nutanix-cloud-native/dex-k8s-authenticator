@@ -32,12 +32,6 @@ var (
 const (
 	workspaceNameAnnotation = "kommander.mesosphere.io/display-name"
 
-	// DKA stores management cluster under `kubernetes-cluster` name.
-	managementClusterName = "kubernetes-cluster"
-
-	// managementWorkspaceNamespaceName is the workspace namespace for the management cluster.
-	managementWorkspaceNamespaceName = "kommander-workspace"
-
 	// kommanderNamespace is the namespace where the management KommanderCluster lives.
 	kommanderNamespace = "kommander"
 
@@ -142,7 +136,7 @@ func (t *k8sTenants) FilterClusterNames(ctx context.Context, tenantId TenantId, 
 
 	// Pre-fetch the management cluster name when processing the management workspace.
 	var mgmtClusterName string
-	if tenantId == managementWorkspaceNamespaceName {
+	if tenantId == ManagementWorkspaceName {
 		mgmtClusterName, err = t.getManagementClusterName(ctx)
 		if err != nil {
 			return nil, err
@@ -156,7 +150,7 @@ func (t *k8sTenants) FilterClusterNames(ctx context.Context, tenantId TenantId, 
 		// management cluster is stored as `kubernetes-cluster` in the DKA config,
 		// while its KommanderCluster name in K8s API is configurable. We look it up
 		// dynamically via the `kommander.d2iq.io/host=true` label.
-		if dkaConfigClusterName == managementClusterName && tenantId == managementWorkspaceNamespaceName {
+		if dkaConfigClusterName == ManagementClusterName && tenantId == ManagementWorkspaceName {
 			if slices.Contains(kcNames, mgmtClusterName) {
 				tenantNames = append(tenantNames, dkaConfigClusterName)
 			}
@@ -202,9 +196,9 @@ func (t *k8sTenants) GetTenantsByCluster(ctx context.Context) (map[string]*Tenan
 	tenantsByCluster := map[string]*Tenant{}
 
 	for _, kc := range kcList.Items {
-		// No tenancy is for management cluster which is stored in the dka config
-		// as kubernetes-cluster
-		if kc.GetName() == managementClusterName {
+		// Skip a KommanderCluster actually named kubernetes-cluster; the DKA
+		// config entry uses that name for management and is stamped below.
+		if kc.GetName() == ManagementClusterName {
 			continue
 		}
 
@@ -223,6 +217,16 @@ func (t *k8sTenants) GetTenantsByCluster(ctx context.Context) (map[string]*Tenan
 			if namespaceName == kc.GetNamespace() {
 				tenantsByCluster[kc.GetName()] = tenantFromWorkspace(&wsList.Items[i])
 			}
+		}
+	}
+
+	// DKA config stores management as kubernetes-cluster, which is not the
+	// KommanderCluster resource name, so the loop above never maps it.
+	// Stamp kommander-workspace so ?tenant-id=kommander-workspace includes it.
+	if _, ok := tenantsByCluster[ManagementClusterName]; !ok {
+		tenantsByCluster[ManagementClusterName] = &Tenant{
+			ID:   TenantId(ManagementWorkspaceName),
+			Name: ManagementWorkspaceName,
 		}
 	}
 

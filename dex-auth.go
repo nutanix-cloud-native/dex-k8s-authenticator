@@ -38,12 +38,18 @@ func (cluster *Cluster) oauth2Config(scopes []string) *oauth2.Config {
 }
 
 func (config *Config) handleIndex(w http.ResponseWriter, r *http.Request) {
+	if config.Enable_Multi_Tenancy {
+		// Never render the unscoped cluster picker. Workspace lists use
+		// /token/workspace/{id}; plugin catalogs require ?tenant-id=.
+		http.Redirect(w, r, path.Join(config.Web_Path_Prefix, "login", tenancy.ManagementClusterName), http.StatusSeeOther)
+		return
+	}
 
 	if len(config.Clusters) == 1 && r.URL.String() == config.Web_Path_Prefix {
 		http.Redirect(w, r, path.Join(config.Web_Path_Prefix, "login", config.Clusters[0].Name), http.StatusSeeOther)
-	} else {
-		renderIndex(w, config)
+		return
 	}
+	renderIndex(w, config)
 }
 
 func (config *Config) handleCallback(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +102,7 @@ func (config *Config) getFirstClusterOrPanic() *Cluster {
 
 	// In DKP the `kubernetes-cluster` name is a special management cluster name.
 	for _, cluster := range config.Clusters {
-		if cluster.Name == "kubernetes-cluster" {
+		if cluster.Name == tenancy.ManagementClusterName {
 			return &cluster
 		}
 	}
