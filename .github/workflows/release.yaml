@@ -59,7 +59,8 @@ jobs:
       - name: Build container image
         run: devbox run -- make container
         env:
-          GITHUB_TOKEN: ${{ secrets.MESOSPHERECI_USER_TOKEN }}
+          # gh release download (konvoy-async-auth) reads GH_TOKEN, not GITHUB_TOKEN.
+          GH_TOKEN: ${{ secrets.MESOSPHERECI_USER_TOKEN }}
           TAG: ${{ needs.set-env.outputs.RELEASE_VERSION }}
 
       - name: Push container image
