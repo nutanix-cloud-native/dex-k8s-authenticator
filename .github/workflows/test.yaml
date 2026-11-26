@@ -26,9 +26,9 @@ jobs:
 
       - name: Granting private modules access
         run: |
-          git config --global url."https://${{ secrets.CI_TOKEN }}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://${{ secrets.MESOSPHERECI_USER_TOKEN }}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 
       - run: devbox run -- make test
         env:
           # Makefile evaluates `gh repo view` while parsing. gh reads GH_TOKEN.
-          GH_TOKEN: ${{ secrets.CI_TOKEN }}
+          GH_TOKEN: ${{ secrets.MESOSPHERECI_USER_TOKEN }}
